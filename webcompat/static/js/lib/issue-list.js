@@ -296,9 +296,13 @@ issueList.IssueView = Backbone.View.extend(
       this.loadIssues();
     },
     template: _.template($('#issuelist-issue-tmpl').html()),
-    loadIssues: function() {
-    // Attemps to load model state from URL params, if present,
-    // otherwise grab model defaults and load issues
+    loadIssues: function(event) {
+      var historyTraversal = false;
+      if (event) {
+        historyTraversal = true;
+      }
+      // Attempt to load model state from URL params, if present,
+      // otherwise grab model defaults and load issues
       var category;
       var queryMatch;
 
@@ -311,7 +315,7 @@ issueList.IssueView = Backbone.View.extend(
         if (!this._isLoggedIn && queryMatch) {
         // We're dealing with an un-authed user, with a q param.
           this.doGitHubSearch(urlParams);
-          this.updateModelParams(urlParams);
+          this.updateModelParams(urlParams, {historyTraversal: historyTraversal});
           _.delay(function() {
           // TODO: update search input from query param for authed users.
             issueList.events.trigger('search:update', queryMatch[1]);
@@ -323,9 +327,18 @@ issueList.IssueView = Backbone.View.extend(
             issueList.events.trigger('filter:activate', category[1]);
           }, 0);
         } else {
-        // Only bother to update/merge model params if we're not loading the defaults
+          // category is falsey, which means this should be "all".
+          // by default, all removes searches.
+          issueList.events.trigger('search:clear');
+          issueList.events.trigger('filter:reset-stage', {historyTraversal:
+                                                          historyTraversal});
+          issueList.events.trigger('filter:clear');
+          issueList.events.trigger('issues:update');
+          // Only bother to update/merge model params if we're not
+          // loading the defaults, or doing history traversal
           if (urlParams !== $.param(this.issues.params)) {
-            this.updateModelParams(urlParams);
+            this.updateModelParams(urlParams,
+              {historyTraversal: historyTraversal});
           }
           this.fetchAndRenderIssues();
         }
@@ -424,6 +437,7 @@ issueList.IssueView = Backbone.View.extend(
       } else if (_.contains(issuesAPICategories, category)) {
         this.issues.setURLState('/api/issues/category/' + category, params);
       } else {
+        // The escape hatch is the default "all" state.
         this.issues.setURLState('/api/issues', params);
       }
 
@@ -500,23 +514,23 @@ issueList.IssueView = Backbone.View.extend(
         }
       }
 
-      this.updateURLParams();
+      this.updateURLParams(options);
     // only re-request issues if explicitly asked to
       if (options && options.update === true) {
         this.fetchAndRenderIssues();
       }
     },
-    updateURLParams: function() {
     // push params from the model back to the URL so it can be used for bookmarks,
     // link sharing, etc.
+    updateURLParams: function(options) {
       var urlParams = this._urlParams;
       var serializedModelParams = $.param(this.issues.params);
 
     // only do this if there's something to change
       if (urlParams !== serializedModelParams) {
         this._urlParams = serializedModelParams;
-        if (history.pushState) {
-          history.pushState({}, '', '?' + serializedModelParams);
+        if (history.pushState && !options.historyTraversal) {
+          history.pushState({serializedModelParams: serializedModelParams}, '', '?' + serializedModelParams);
         }
       }
     }
