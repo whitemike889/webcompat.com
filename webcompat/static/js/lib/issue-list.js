@@ -275,7 +275,7 @@ issueList.IssueView = Backbone.View.extend(
     events: {
       'click .js-Issue-label .wc-Labels': 'labelSearch',
     },
-  // NOTE: these filters don't need "status-" prefixes because appear in URL params
+    // NOTE: these filters don't need "status-" prefixes because appear in URL params
     _filterRegex: /&*stage=(closed|contactready|needscontact|needsdiagnosis|needstriage|sitewait)&*/i,
     _searchRegex: /&*q=(?:(.+)?)&*/i,
     _githubSearchEndpoint: 'https://api.github.com/search/issues',
@@ -285,7 +285,7 @@ issueList.IssueView = Backbone.View.extend(
     initialize: function() {
       this.issues = new issueList.IssueCollection();
 
-    // set up event listeners.
+      // set up event listeners.
       issueList.events.on('issues:update', _.bind(this.updateIssues, this));
       issueList.events.on('filter:add-to-model', _.bind(this.updateModelParams, this));
       issueList.events.on('filter:reset-stage', _.bind(this.resetStageFilter, this));
@@ -309,7 +309,7 @@ issueList.IssueView = Backbone.View.extend(
       this._urlParams = location.search.slice(1);
       var urlParams = this._urlParams;
 
-    // There are some params in the URL
+      // There are some params in the URL
       if (urlParams.length !== 0) {
         queryMatch = urlParams.match(this._searchRegex);
         if (!this._isLoggedIn && queryMatch) {
@@ -321,8 +321,8 @@ issueList.IssueView = Backbone.View.extend(
             issueList.events.trigger('search:update', queryMatch[1]);
           }, 0);
         } else if (category = window.location.search.match(this._filterRegex)) {
-        // If there was a stage filter match, fire an event which loads results
-          this.updateModelParams(urlParams);
+          // If there was a stage filter match, fire an event which loads results
+          this.updateModelParams(urlParams, {historyTraversal: historyTraversal});
           _.delay(function() {
             issueList.events.trigger('filter:activate', category[1]);
           }, 0);
@@ -343,14 +343,14 @@ issueList.IssueView = Backbone.View.extend(
           this.fetchAndRenderIssues();
         }
       } else {
-      // There are no params in the URL, load the defaults
+        // There are no params in the URL, load the defaults
         this.updateURLParams();
         this.fetchAndRenderIssues();
       }
     },
     doGitHubSearch: function(params) {
-    // Bypass our server and request GitHub search results (from the client)
-    // to avoid being penalized for unauthed Search API requests.
+      // Bypass our server and request GitHub search results (from the client)
+      // to avoid being penalized for unauthed Search API requests.
       var gitHubSearchURL = this._githubSearchEndpoint + '?' +
                           $.param(this.issues.normalizeAPIParams(params));
       this.fetchAndRenderIssues({url: gitHubSearchURL});
@@ -399,9 +399,9 @@ issueList.IssueView = Backbone.View.extend(
       return this;
     },
     labelSearch: function(e) {
-    // clicking on a label in the issues view should trigger a
-    // "search:update" event to populate the view with search results
-    // for the given label.
+      // clicking on a label in the issues view should trigger a
+      // "search:update" event to populate the view with search results
+      // for the given label.
       var target = $(e.target);
       var clickedLabel = target.data('remotename');
       var labelFilter = 'label:' + clickedLabel;
@@ -414,19 +414,18 @@ issueList.IssueView = Backbone.View.extend(
       this.updateModelParams('page=1&stage=all', options);
     },
     updateIssues: function(category) {
-    // depending on what category was clicked (or if a search came in),
-    // update the collection instance url property and fetch the issues.
-
+      // depending on what category was clicked (or if a search came in),
+      // update the collection instance url property and fetch the issues.
       var issuesAPICategories = ['closed', 'contactready', 'needscontact',
         'needsdiagnosis', 'needstriage', 'sitewait'];
       var params = this.issues.params;
       var paramsCopy;
-    // note: if query is the empty string, it will load all issues from the
-    // '/api/issues' endpoint (which I think we want).
+      // note: if query is the empty string, it will load all issues from the
+      // '/api/issues' endpoint (which I think we want).
       if (category && category.query) {
-      // first, add the query to the underlying model, then make a copy of that
-      // which can be manipulated by doGitHubSearch without affecting the params
-      // that are pushed back to the URL bar.
+        // first, add the query to the underlying model, then make a copy of that
+        // which can be manipulated by doGitHubSearch without affecting the params
+        // that are pushed back to the URL bar.
         paramsCopy = _.cloneDeep($.extend(params, {q: category.query}));
         if (!this._isLoggedIn) {
           this.doGitHubSearch(paramsCopy);
@@ -444,8 +443,8 @@ issueList.IssueView = Backbone.View.extend(
       this.fetchAndRenderIssues();
     },
     addParamsToModel: function(paramsArray) {
-    // this method just puts the params in the model's params property.
-    // paramsArray is an array of param 'key=value' string pairs
+      // this method just puts the params in the model's params property.
+      // paramsArray is an array of param 'key=value' string pairs
       _.forEach(paramsArray, _.bind(function(param) {
         var kvArray = param.split('=');
         var key = kvArray[0];
@@ -454,14 +453,13 @@ issueList.IssueView = Backbone.View.extend(
       }, this));
     },
     updateModelParams: function(params, options) {
-    // we convert the params string into an array, splitting
-    // on '&' in case of multiple params. those are then
-    // merged into the issues model.
-
+      // we convert the params string into an array, splitting
+      // on '&' in case of multiple params. those are then
+      // merged into the issues model.
       var hasPerPageChange = params.indexOf('per_page') !== -1;
       var hasSortChange = params.indexOf('sort') !== -1;
 
-    // call _.uniq() on it to ignore duplicate values
+      // call _.uniq() on it to ignore duplicate values
       var paramsArray = _.uniq(params.split('&'));
 
       if (options && options.removeQ === true) {
@@ -470,7 +468,7 @@ issueList.IssueView = Backbone.View.extend(
 
       this.addParamsToModel(paramsArray);
 
-    //broadcast to each of the dropdowns that they need to update
+      // broadcast to each of the dropdowns that they need to update
       var pageDropdown;
       if (hasPerPageChange) {
         pageDropdown = 'per_page=' + this.issues.params.per_page;
@@ -480,7 +478,7 @@ issueList.IssueView = Backbone.View.extend(
       }
 
       var sortDropdown;
-    // all the sort options begin with sort, and end with direction.
+      // all the sort options begin with sort, and end with direction.
       if (hasSortChange) {
         sortDropdown = 'sort=' + this.issues.params.sort + '&direction=' + this.issues.params.direction;
         _.delay(function() {
@@ -488,8 +486,8 @@ issueList.IssueView = Backbone.View.extend(
         }, 0);
       }
 
-    // make sure we prevent more than one mutually-exclusive state param
-    // in the model, because that's weird. the "last" param will win.
+      // make sure we prevent more than one mutually-exclusive state param
+      // in the model, because that's weird. the "last" param will win.
       var currentStateParamName;
       var stateParamsSet = ['state', 'creator', 'mentioned'];
       var stateParam = _.find(paramsArray, function(paramString) {
@@ -501,7 +499,7 @@ issueList.IssueView = Backbone.View.extend(
       });
 
       if (stateParam !== undefined) {
-      // delete the non-current state params from the stateParamsSet
+        // delete the non-current state params from the stateParamsSet
         var toDelete = _.without(stateParamsSet, currentStateParamName);
         _.forEach(toDelete, _.bind(function(param) {
           delete this.issues.params[param];
@@ -515,7 +513,7 @@ issueList.IssueView = Backbone.View.extend(
       }
 
       this.updateURLParams(options);
-    // only re-request issues if explicitly asked to
+      // only re-request issues if explicitly asked to
       if (options && options.update === true) {
         this.fetchAndRenderIssues();
       }
@@ -526,7 +524,7 @@ issueList.IssueView = Backbone.View.extend(
       var urlParams = this._urlParams;
       var serializedModelParams = $.param(this.issues.params);
 
-    // only do this if there's something to change
+      // only do this if there's something to change
       if (urlParams !== serializedModelParams) {
         this._urlParams = serializedModelParams;
         if (history.pushState && !options.historyTraversal) {
