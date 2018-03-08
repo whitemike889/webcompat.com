@@ -40,6 +40,7 @@
     "grunt-postcss": "^0.8.0",
     "husky": "^0.13.4",
     "intern": "^4.1.4",
+    "istanbul": "^0.4.5",
     "lint-staged": "^3.6.1",
     "load-grunt-tasks": "^3.5.2",
     "postcss": "^5.2.17",
@@ -79,7 +80,8 @@
     "precommit": "lint-staged",
     "test": "npm run test:js && npm run test:python",
     "test:js": "node ./tests/functional/_intern.js",
-    "test:python": "nosetests"
+    "test:python": "nosetests",
+    "coverage": "istanbul cover ./tests/**/*.js"
   },
   "lint-staged": {
     "*.js": "lint:JS",
