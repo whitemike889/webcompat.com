@@ -118,7 +118,12 @@ const filteringList = (renderActivityIndicator = true) => {
       /* generic test */
       result = classList.filter(className => className.match(select.value));
       /* exclude issue including special filter different from current filter */
-      result = handleSpecialFilter(select.value, classList, result, "needsinfo");
+      result = handleSpecialFilter(
+        select.value,
+        classList,
+        result,
+        "needsinfo"
+      );
       if (result.length === 0) {
         mustBeHidden = true;
         return;
