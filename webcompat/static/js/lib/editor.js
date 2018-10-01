@@ -34,7 +34,7 @@ issues.CategoryEditorView = Backbone.View.extend({
   isOpen: false,
   className: "label-editor js-CategoryEditor",
   events: {
-    "change input[type=checkbox]": "updateView",
+    "change input": "updateView",
     "click button": "closeEditor",
     keyup: "closeEditor",
     "keyup .label-editor-header .form-field": "filterItems",

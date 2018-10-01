@@ -51,23 +51,15 @@ issues.MilestoneEditorView = issues.CategoryEditorView.extend({
     this.issueView = options.issueView;
   },
   template: wcTmpl["web_modules/milestone-editor.jst"],
-  updateView: function(evt) {
+  updateView: function() {
     // We try to make sure only one milestone is set
     // enumerate all checked milestones and uncheck the others.
-    var checked = this.$el.find(
-      'input[type=checkbox][data-remotename^="milestone"]:checked'
-    );
-    _.each(checked, function(item) {
-      if (item !== evt.target) {
-        item.checked = false;
-      }
-    });
-    checked = this.$el.find("input[type=checkbox]:checked");
+    var selected = this.$el.find("input[type=radio]:checked");
     // we do the "real" save when you close the editor.
     // this just updates the UI responsively
     this.reRender({
-      milestone: checked.prop("name"),
-      color: checked.data("color")
+      milestone: selected.data("name"),
+      color: selected.data("color")
     });
   },
   render: function() {
@@ -84,10 +76,8 @@ issues.MilestoneEditorView = issues.CategoryEditorView.extend({
     if (this.isOpen) {
       if (!e || (e && (e.keyCode === 27 || !e.keyCode))) {
         this.isOpen = false;
-        var checked = this.$el
-          .find("input[type=checkbox]:checked")
-          .prop("name");
-        this.model.updateMilestone(checked);
+        var selected = this.$el.find("input[type=radio]:checked").data("name");
+        this.model.updateMilestone(selected);
 
         // detach() (vs remove()) here because we don't want to lose events if the
         // user reopens the editor.
