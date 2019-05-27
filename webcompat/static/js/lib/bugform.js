@@ -4,7 +4,7 @@
 
 /*eslint new-cap: ["error", { "capIsNewExceptions": ["Deferred"] }]*/
 
-function BugForm() {
+function BugForm(v) {
   this.clickedButton = null;
   this.detailsInput = $("#details:hidden");
   this.errorLabel = $(".js-error-upload");
@@ -15,10 +15,10 @@ function BugForm() {
   this.reportButton = $("#js-ReportBug");
   this.removeBanner = $(".js-remove-upload");
   this.submitButtons = $("#js-ReportForm .js-Button");
+  this.submitButtonWrappers = $("#js-ReportForm .js-Button-wrapper");
   this.submitTypeInput = $("#submit_type:hidden");
   this.uploadLabel = $(".js-label-upload");
   this.urlParamRegExp = /url=([^&]+)/;
-  this.githubRegexp = /^[a-z\d](?:[a-z\d]|-(?=[a-z\d])){0,38}$/i;
 
   this.UPLOAD_LIMIT = 1024 * 1024 * 4;
 
@@ -28,7 +28,7 @@ function BugForm() {
       valid: null,
       helpText: "A valid URL is required."
     },
-    problem_type: {
+    problem_category: {
       el: $("[name=problem_category]"),
       valid: null,
       helpText: "Problem type required."
@@ -76,7 +76,7 @@ function BugForm() {
 
   this.browserField = this.inputs.browser.el;
   this.osField = this.inputs.os.el;
-  this.problemType = this.inputs.problem_type.el;
+  this.problemType = this.inputs.problem_category.el;
   this.uploadField = this.inputs.image.el;
   this.urlField = this.inputs.url.el;
   this.descField = this.inputs.description.el;
@@ -95,6 +95,7 @@ function BugForm() {
     this.onFormSubmit = this.onFormSubmit.bind(this);
     this.onReceiveMessage = this.onReceiveMessage.bind(this);
     this.preventSubmitByEnter = this.preventSubmitByEnter.bind(this);
+    this.onSubmitAttempt = this.onSubmitAttempt.bind(this);
 
     // Make sure we're not getting a report
     // about our own site before checking params.
@@ -117,6 +118,7 @@ function BugForm() {
     );
     this.contactField.on("blur input", this.checkGitHubUsername);
     this.submitButtons.on("click", this.storeClickedButton);
+    this.submitButtonWrappers.on("click", this.onSubmitAttempt);
     this.form.on("submit", this.onFormSubmit);
 
     // prevent submit by hitting enter key for single line input fields
@@ -257,6 +259,10 @@ function BugForm() {
     this.clickedButton = event.target.name;
   };
 
+  this.onSubmitAttempt = function() {
+    this.performChecks();
+  };
+
   this.trimWyciwyg = function(url) {
     // Trim wyciwyg://N/ from URL, if found.
     // See https://bugzilla.mozilla.org/show_bug.cgi?id=1098037 &
@@ -271,104 +277,92 @@ function BugForm() {
 
   this.disableSubmits = function() {
     this.submitButtons.prop("disabled", true);
-    this.submitButtons.addClass("is-disabled");
   };
 
   this.enableSubmits = function() {
     this.submitButtons.prop("disabled", false);
-    this.submitButtons.removeClass("is-disabled");
+  };
+
+  this.determineValidityFunction = function(func, field) {
+    return func(field) ? "makeValid" : "makeInvalid";
   };
 
   this.checkProblemTypeValidity = function() {
-    if (!$("[name=problem_category]:checked").length) {
-      this.makeInvalid("problem_type");
-    } else {
-      this.makeValid("problem_type");
-    }
+    var func = this.determineValidityFunction(
+      v.isProblemTypeValid,
+      this.problemType
+    );
+    this[func]("problem_category");
   };
 
   this.checkImageTypeValidity = function(event) {
-    var splitImg = this.uploadField.val().split(".");
-    var ext = splitImg[splitImg.length - 1].toLowerCase();
-    var allowed = ["jpg", "jpeg", "jpe", "png", "gif", "bmp"];
     // Bail if there's no image.
     if (!this.uploadField.val()) {
       return;
     }
 
-    if (!_.includes(allowed, ext)) {
-      this.makeInvalid("image");
-    } else {
-      this.makeValid("image");
-      if (event) {
-        // We can just grab the 0th one, because we only allow uploading
-        // a single image at a time (for now)
-        this.convertToDataURI(event.target.files[0], this.showUploadPreview);
-      }
-    }
+    var func = this.determineValidityFunction(
+      v.isImageTypeValid,
+      this.uploadField
+    );
+    this[func]("image");
 
+    if (func === "makeValid" && event) {
+      // We can just grab the 0th one, because we only allow uploading
+      // a single image at a time (for now)
+      this.convertToDataURI(event.target.files[0], this.showUploadPreview);
+    }
     // null out input.value so we get a consistent
     // change event across browsers
     event.target.value = null;
   };
 
-  this.isReportableURL = function(url) {
-    var ok = url && (_.startsWith(url, "http:") || _.startsWith(url, "https:"));
-    ok &= !(_.startsWith(url, "http:// ") || _.startsWith(url, "https:// "));
-    return ok;
-  };
-
-  /* Check to see that the URL input element is not empty,
-     or if it's a non-webby scheme. */
+  /**
+   * Check to see that the URL input element is not empty,
+   or if it's a non-webby scheme. */
   this.checkURLValidity = function() {
-    var val = this.urlField.val();
-    if ($.trim(val) === "" || !this.isReportableURL(val)) {
-      this.makeInvalid("url");
-    } else {
-      this.makeValid("url");
-    }
+    var func = this.determineValidityFunction(v.isUrlValid, this.urlField);
+    this[func]("url");
   };
 
-  /* Check to see that the description input element is not empty. */
+  /**
+   * Check to see that the description input element is not empty.
+   * */
   this.checkDescriptionValidity = function() {
-    var val = this.descField.val();
-    if ($.trim(val) === "") {
-      this.makeInvalid("description");
-    } else {
-      this.makeValid("description");
-    }
+    var func = this.determineValidityFunction(
+      v.isDescriptionValid,
+      this.descField
+    );
+    this[func]("description");
   };
 
-  /* Check if Browser and OS are empty or not, only
-     so we can set them to valid (there is no invalid state) */
-  this.checkOptionalNonEmpty = function(input) {
-    var inputId = input.prop("id");
-
-    if (input.val()) {
-      this.makeValid(inputId);
-    } else {
-      this.makeInvalid(inputId);
-    }
+  /**
+  * Check if Browser and OS are empty or not, only
+   so we can set them to valid (there is no invalid state)
+   */
+  this.checkOptionalNonEmpty = function(field) {
+    var func = this.determineValidityFunction(v.isOptionalValid, field);
+    var inputId = field.prop("id");
+    this[func](inputId);
   };
 
-  /*
-  Check a string is a valid GitHub username
-    - maximum 39 chars
-    - alphanumerical characters and hyphens
-    - no two consecutive hyphens
-  */
-  this.isValidGitHubUsername = function(contact) {
-    return this.githubRegexp.test(contact);
-  };
-
-  /* Check to see if the GitHub username has the right syntax. */
+  /**
+   *  Check to see if the GitHub username has the right syntax.
+   * */
   this.checkGitHubUsername = function() {
-    var contact = this.contactField.val();
-    if (this.isValidGitHubUsername(contact) || $.trim(contact) === "") {
-      this.makeValid("contact");
-    } else {
-      this.makeInvalid("contact");
-    }
+    var func = this.determineValidityFunction(
+      v.isGithubUserNameValid,
+      this.contactField
+    );
+    this[func]("contact");
+  };
+
+  this.performChecks = function() {
+    this.checkURLValidity();
+    this.checkDescriptionValidity();
+    this.checkProblemTypeValidity();
+    this.checkImageTypeValidity();
+    this.checkGitHubUsername();
   };
 
   this.checkForm = function() {
@@ -382,11 +376,7 @@ function BugForm() {
     ];
     if (_.some(inputs, Boolean)) {
       // then, check validity
-      this.checkURLValidity();
-      this.checkDescriptionValidity();
-      this.checkProblemTypeValidity();
-      this.checkImageTypeValidity();
-      this.checkGitHubUsername();
+      this.performChecks();
       // and open the form, if it's not already open
       if (!this.reportButton.hasClass("is-open")) {
         this.reportButton.click();
@@ -434,7 +424,7 @@ function BugForm() {
       case "url":
       case "contact":
       case "description":
-      case "problem_type":
+      case "problem_category":
         inlineHelp.insertAfter("label[for=" + id + "]");
         break;
       case "image":
@@ -463,6 +453,16 @@ function BugForm() {
     this.disableSubmits();
   };
 
+  this.checkAllRequiredValid = function() {
+    return (
+      this.inputs["url"].valid &&
+      this.inputs["problem_category"].valid &&
+      this.inputs["image"].valid &&
+      this.inputs["description"].valid &&
+      this.inputs["contact"].valid
+    );
+  };
+
   this.makeValid = function(id) {
     this.inputs[id].valid = true;
     this.inputs[id].el
@@ -475,12 +475,7 @@ function BugForm() {
       .find(".form-message-error")
       .remove();
 
-    if (
-      this.inputs["url"].valid &&
-      this.inputs["problem_type"].valid &&
-      this.inputs["image"].valid &&
-      this.inputs["description"].valid
-    ) {
+    if (this.checkAllRequiredValid()) {
       this.enableSubmits();
     }
   };
@@ -706,5 +701,6 @@ function BugForm() {
 }
 
 $(function() {
-  new BugForm();
+  var validation = new Validation();
+  new BugForm(validation);
 });
