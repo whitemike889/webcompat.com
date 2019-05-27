@@ -19,6 +19,7 @@ function BugForm(v) {
   this.submitTypeInput = $("#submit_type:hidden");
   this.uploadLabel = $(".js-label-upload");
   this.urlParamRegExp = /url=([^&]+)/;
+  this.listenersAdded = false;
 
   this.UPLOAD_LIMIT = 1024 * 1024 * 4;
 
@@ -104,19 +105,7 @@ function BugForm(v) {
     }
 
     this.disableSubmits();
-    this.urlField.on("blur input", this.checkURLValidity);
-    this.descField.on("blur input", this.checkDescriptionValidity);
-    this.problemType.on("change", this.checkProblemTypeValidity);
     this.uploadField.on("change", this.checkImageTypeValidity);
-    this.osField.on(
-      "blur",
-      this.checkOptionalNonEmpty.bind(this, this.osField)
-    );
-    this.browserField.on(
-      "blur",
-      this.checkOptionalNonEmpty.bind(this, this.browserField)
-    );
-    this.contactField.on("blur input", this.checkGitHubUsername);
     this.submitButtons.on("click", this.storeClickedButton);
     this.submitButtonWrappers.on("click", this.onSubmitAttempt);
     this.form.on("submit", this.onFormSubmit);
@@ -259,8 +248,29 @@ function BugForm(v) {
     this.clickedButton = event.target.name;
   };
 
+  /**
+   * Adds event listeners to all fields after submit button was clicked
+   */
+  this.addEventListeners = function() {
+    this.urlField.on("blur input", this.checkURLValidity);
+    this.descField.on("blur input", this.checkDescriptionValidity);
+    this.problemType.on("change", this.checkProblemTypeValidity);
+    this.osField.on(
+      "blur",
+      this.checkOptionalNonEmpty.bind(this, this.osField)
+    );
+    this.browserField.on(
+      "blur",
+      this.checkOptionalNonEmpty.bind(this, this.browserField)
+    );
+    this.contactField.on("blur input", this.checkGitHubUsername);
+
+    this.listenersAdded = true;
+  };
+
   this.onSubmitAttempt = function() {
     this.performChecks();
+    if (!this.listenersAdded) this.addEventListeners();
   };
 
   this.trimWyciwyg = function(url) {
@@ -314,7 +324,7 @@ function BugForm(v) {
     }
     // null out input.value so we get a consistent
     // change event across browsers
-    event.target.value = null;
+    if (event) event.target.value = null;
   };
 
   /**
