@@ -106,6 +106,15 @@ function BugForm(v) {
 
     this.disableSubmits();
     this.uploadField.on("change", this.checkImageTypeValidity);
+    this.contactField.on("blur input", this.checkGitHubUsername);
+    this.osField.on(
+      "blur",
+      this.checkOptionalNonEmpty.bind(this, this.osField)
+    );
+    this.browserField.on(
+      "blur",
+      this.checkOptionalNonEmpty.bind(this, this.browserField)
+    );
     this.submitButtons.on("click", this.storeClickedButton);
     this.submitButtonWrappers.on("click", this.onSubmitAttempt);
     this.form.on("submit", this.onFormSubmit);
@@ -255,15 +264,6 @@ function BugForm(v) {
     this.urlField.on("blur input", this.checkURLValidity);
     this.descField.on("blur input", this.checkDescriptionValidity);
     this.problemType.on("change", this.checkProblemTypeValidity);
-    this.osField.on(
-      "blur",
-      this.checkOptionalNonEmpty.bind(this, this.osField)
-    );
-    this.browserField.on(
-      "blur",
-      this.checkOptionalNonEmpty.bind(this, this.browserField)
-    );
-    this.contactField.on("blur input", this.checkGitHubUsername);
 
     this.listenersAdded = true;
   };
