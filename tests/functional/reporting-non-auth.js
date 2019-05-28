@@ -65,83 +65,83 @@ registerSuite("Reporting (non-auth)", {
         .end();
     },
 
-    // "space in domain name validation"() {
-    //   return FunctionalHelpers.openPage(
-    //     this,
-    //     url("/issues/new"),
-    //     ".js-report-buttons"
-    //   )
-    //     .findByCssSelector("#url")
-    //     .click()
-    //     .type("http:// example.com")
-    //     .end()
-    //     .sleep(500)
-    //     .findByCssSelector(".form-message-error");
-    // },
-    //
-    // "URL validation"() {
-    //   return FunctionalHelpers.openPage(
-    //     this,
-    //     url("/issues/new"),
-    //     ".js-report-buttons"
-    //   )
-    //     .findByCssSelector("#url")
-    //     .click()
-    //     .type("sup")
-    //     .end()
-    //     .sleep(500)
-    //     .findByCssSelector(".form-message-error")
-    //     .getVisibleText()
-    //     .then(function(text) {
-    //       assert.include(
-    //         text,
-    //         "A valid URL is required",
-    //         "URL validation message is shown"
-    //       );
-    //     })
-    //     .end()
-    //     .findByCssSelector("#url")
-    //     .clearValue()
-    //     .type("http://sup.com")
-    //     .end()
-    //     .waitForDeletedByCssSelector(".form-message-error")
-    //     .end();
-    // },
-    //
-    // "Description validation"() {
-    //   return (
-    //     FunctionalHelpers.openPage(
-    //       this,
-    //       url("/issues/new"),
-    //       ".js-report-buttons"
-    //     )
-    //       .findByCssSelector("#description")
-    //       .click()
-    //       .end()
-    //       .execute(function() {
-    //         var elm = document.querySelector("#description");
-    //         WindowHelpers.sendEvent(elm, "input");
-    //       })
-    //       .sleep(500)
-    //       .findByCssSelector(".form-message-error")
-    //       .getVisibleText()
-    //       .then(function(text) {
-    //         assert.include(
-    //           text,
-    //           "A problem summary is required",
-    //           "Problem summary validation message is shown"
-    //         );
-    //       })
-    //       .end()
-    //       // enter a bug description
-    //       .findByCssSelector("#description")
-    //       .type("bug description")
-    //       .end()
-    //       // validation message should be gone
-    //       .waitForDeletedByCssSelector(".form-message-error")
-    //       .end()
-    //   );
-    // },
+    "space in domain name validation"() {
+      return FunctionalHelpers.openPage(
+        this,
+        url("/issues/new"),
+        ".js-report-buttons"
+      )
+        .findByCssSelector("#url")
+        .click()
+        .type("http:// example.com")
+        .end()
+        .sleep(500)
+        .findByCssSelector(".form-message-error");
+    },
+
+    "URL validation"() {
+      return FunctionalHelpers.openPage(
+        this,
+        url("/issues/new"),
+        ".js-report-buttons"
+      )
+        .findByCssSelector("#url")
+        .click()
+        .type("sup")
+        .end()
+        .sleep(500)
+        .findByCssSelector(".form-message-error")
+        .getVisibleText()
+        .then(function(text) {
+          assert.include(
+            text,
+            "A valid URL is required",
+            "URL validation message is shown"
+          );
+        })
+        .end()
+        .findByCssSelector("#url")
+        .clearValue()
+        .type("http://sup.com")
+        .end()
+        .waitForDeletedByCssSelector(".form-message-error")
+        .end();
+    },
+
+    "Description validation"() {
+      return (
+        FunctionalHelpers.openPage(
+          this,
+          url("/issues/new"),
+          ".js-report-buttons"
+        )
+          .findByCssSelector("#description")
+          .click()
+          .end()
+          .execute(function() {
+            var elm = document.querySelector("#description");
+            WindowHelpers.sendEvent(elm, "input");
+          })
+          .sleep(500)
+          .findByCssSelector(".form-message-error")
+          .getVisibleText()
+          .then(function(text) {
+            assert.include(
+              text,
+              "A problem summary is required",
+              "Problem summary validation message is shown"
+            );
+          })
+          .end()
+          // enter a bug description
+          .findByCssSelector("#description")
+          .type("bug description")
+          .end()
+          // validation message should be gone
+          .waitForDeletedByCssSelector(".form-message-error")
+          .end()
+      );
+    },
 
     "(optional) browser + os validation"() {
       return (
@@ -250,10 +250,10 @@ registerSuite("Reporting (non-auth)", {
           .sleep(250)
           // now make sure the buttons aren't disabled anymore
           .findAllByCssSelector(".js-report-buttons button")
-          .getAttribute("class")
-          .then(function(classNames) {
-            classNames.forEach(function(className) {
-              assert.notInclude(className, "is-disabled");
+          .getAttribute("disabled")
+          .then(function(values) {
+            values.forEach(function(value) {
+              assert.isNull(value);
             });
           })
           .end()
@@ -410,6 +410,30 @@ registerSuite("Reporting (non-auth)", {
             "GitHub nicknames are 39",
             "contact validation message is shown"
           );
+        })
+        .end();
+    },
+    "Submitting form without filling anything"() {
+      return FunctionalHelpers.openPage(
+        this,
+        url("/issues/new"),
+        ".js-report-buttons"
+      )
+        .findByCssSelector(".js-Button-wrapper")
+        .click()
+        .end()
+        .sleep(500)
+        .findAllByCssSelector(".form-message-error")
+        .getVisibleText()
+        .then(function(texts) {
+          var errorTexts = [
+            "A valid URL is required.",
+            "Problem type required.",
+            "A problem summary is required."
+          ];
+          errorTexts.forEach(function(expectedText) {
+            assert.include(texts, expectedText, "Error messages don't match");
+          });
         })
         .end();
     }

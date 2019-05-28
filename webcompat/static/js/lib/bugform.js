@@ -19,7 +19,6 @@ function BugForm(v) {
   this.submitTypeInput = $("#submit_type:hidden");
   this.uploadLabel = $(".js-label-upload");
   this.urlParamRegExp = /url=([^&]+)/;
-  this.listenersAdded = false;
 
   this.UPLOAD_LIMIT = 1024 * 1024 * 4;
 
@@ -49,8 +48,7 @@ function BugForm(v) {
       // image should be valid by default because it's optional
       valid: true,
       helpText:
-        "Image must be one of the following: jpe, jpg, jpeg, png, gif, or bmp.",
-      altHelpText: "Please choose a smaller image (< 4MB)"
+        "Image must be one of the following: jpe, jpg, jpeg, png, gif, or bmp."
     },
     browser: {
       el: $("#browser"),
@@ -86,8 +84,16 @@ function BugForm(v) {
   this.contactField = this.inputs.contact.el;
 
   this.init = function() {
-    this.checkURLValidity = this.checkURLValidity.bind(this);
-    this.checkDescriptionValidity = this.checkDescriptionValidity.bind(this);
+    //this.checkURLValidity = this.checkURLValidity.bind(this);
+    this.checkUrlIfNotEmpty = _.debounce(
+      this.checkUrlIfNotEmpty.bind(this),
+      1000
+    );
+    this.checkDescriptionIfNotEmpty = _.debounce(
+      this.checkDescriptionIfNotEmpty.bind(this),
+      1000
+    );
+    // this.checkDescriptionValidity = this.checkDescriptionValidity.bind(this);
     this.checkProblemTypeValidity = this.checkProblemTypeValidity.bind(this);
     this.checkImageTypeValidity = this.checkImageTypeValidity.bind(this);
     this.checkGitHubUsername = this.checkGitHubUsername.bind(this);
@@ -105,6 +111,9 @@ function BugForm(v) {
     }
 
     this.disableSubmits();
+    this.urlField.on("blur input", this.checkUrlIfNotEmpty);
+    this.descField.on("blur input", this.checkDescriptionIfNotEmpty);
+    this.problemType.on("change", this.checkProblemTypeValidity);
     this.uploadField.on("change", this.checkImageTypeValidity);
     this.contactField.on("blur input", this.checkGitHubUsername);
     this.osField.on(
@@ -257,20 +266,8 @@ function BugForm(v) {
     this.clickedButton = event.target.name;
   };
 
-  /**
-   * Adds event listeners to all fields after submit button was clicked
-   */
-  this.addEventListeners = function() {
-    this.urlField.on("blur input", this.checkURLValidity);
-    this.descField.on("blur input", this.checkDescriptionValidity);
-    this.problemType.on("change", this.checkProblemTypeValidity);
-
-    this.listenersAdded = true;
-  };
-
   this.onSubmitAttempt = function() {
     this.performChecks();
-    if (!this.listenersAdded) this.addEventListeners();
   };
 
   this.trimWyciwyg = function(url) {
@@ -327,23 +324,33 @@ function BugForm(v) {
     if (event) event.target.value = null;
   };
 
+  this.checkUrlIfNotEmpty = function() {
+    var hideError = !this.urlField.val();
+    this.checkURLValidity(hideError);
+  };
+
+  this.checkDescriptionIfNotEmpty = function() {
+    var hideError = !this.descField.val();
+    this.checkDescriptionValidity(hideError);
+  };
+
   /**
    * Check to see that the URL input element is not empty,
    or if it's a non-webby scheme. */
-  this.checkURLValidity = function() {
+  this.checkURLValidity = function(hideError) {
     var func = this.determineValidityFunction(v.isUrlValid, this.urlField);
-    this[func]("url");
+    this[func]("url", hideError);
   };
 
   /**
    * Check to see that the description input element is not empty.
    * */
-  this.checkDescriptionValidity = function() {
+  this.checkDescriptionValidity = function(hideError) {
     var func = this.determineValidityFunction(
       v.isDescriptionValid,
       this.descField
     );
-    this[func]("description");
+    this[func]("description", hideError);
   };
 
   /**
@@ -386,38 +393,27 @@ function BugForm(v) {
     ];
     if (_.some(inputs, Boolean)) {
       // then, check validity
-      this.performChecks();
+      //this.performChecks();
       // and open the form, if it's not already open
       if (!this.reportButton.hasClass("is-open")) {
         this.reportButton.click();
       }
     }
     // Make sure we only do this if the inputs exist on the page
-    if (this.browserField.length) {
-      this.checkOptionalNonEmpty(this.browserField);
-    }
-    if (this.osField.length) {
-      this.checkOptionalNonEmpty(this.osField);
-    }
+    // if (this.browserField.length) {
+    //   this.checkOptionalNonEmpty(this.browserField);
+    // }
+    // if (this.osField.length) {
+    //   this.checkOptionalNonEmpty(this.osField);
+    // }
   };
 
-  /* makeInvalid can take an {altHelp: true} options argument to select
-     alternate helpText to display */
-  this.makeInvalid = function(id, opts) {
-    // Early return if inline help is already in place.
-    if (this.inputs[id].valid === false) {
-      return;
-    }
-
+  this.showError = function(id) {
     var inlineHelp = $("<small></small>", {
       class: "label-icon-message form-message-error",
-      text:
-        opts && opts.altHelp
-          ? this.inputs[id].altHelpText
-          : this.inputs[id].helpText
+      text: this.inputs[id].helpText
     });
 
-    this.inputs[id].valid = false;
     this.inputs[id].el
       .parents(".js-Form-group")
       .removeClass("is-validated js-no-error")
@@ -459,7 +455,16 @@ function BugForm(v) {
         // someone might decide to just not select an image.
         return;
     }
+  };
 
+  this.makeInvalid = function(id, hideError) {
+    // Early return if inline help is already in place.
+    if (this.inputs[id].valid === false) {
+      return;
+    }
+
+    this.inputs[id].valid = false;
+    if (!hideError) this.showError(id);
     this.disableSubmits();
   };
 
@@ -473,22 +478,44 @@ function BugForm(v) {
     );
   };
 
-  this.makeValid = function(id) {
-    this.inputs[id].valid = true;
-    this.inputs[id].el
-      .parents(".js-Form-group")
-      .removeClass("is-error js-form-error")
-      .addClass("is-validated js-no-error");
-
-    this.inputs[id].el
-      .parents(".js-Form-group")
-      .find(".form-message-error")
-      .remove();
-
+  this.enableSubmitsIfFormValid = function() {
     if (this.checkAllRequiredValid()) {
       this.enableSubmits();
     }
   };
+
+  // this.removeAllValidityStyles = function(el) {
+  //   this.removeValidStyle(el);
+  //   this.removeInvalidStyle(el);
+  // };
+
+  // this.removeInvalidStyle = function(el) {
+  //   el.parents(".js-Form-group").removeClass("is-error js-form-error");
+  //   el.parents(".js-Form-group")
+  //     .find(".form-message-error")
+  //     .remove();
+  // };
+  //
+  // this.removeValidStyle = function(el) {
+  //   el.parents(".js-Form-group").removeClass("is-validated js-no-error");
+  // };
+
+  this.showSuccess = function(el) {
+    el.parents(".js-Form-group")
+      .removeClass("is-error js-form-error")
+      .addClass("is-validated js-no-error");
+
+    el.parents(".js-Form-group")
+      .find(".form-message-error")
+      .remove();
+  };
+
+  this.makeValid = function(id) {
+    this.inputs[id].valid = true;
+    this.showSuccess(this.inputs[id].el);
+    this.enableSubmitsIfFormValid();
+  };
+
   /*
     If the users browser understands the FileReader API, show a preview
     of the image they're about to load, then invoke the passed in callback
