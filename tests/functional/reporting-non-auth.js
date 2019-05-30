@@ -75,8 +75,12 @@ registerSuite("Reporting (non-auth)", {
         .click()
         .type("http:// example.com")
         .end()
+        .execute(function() {
+          var elm = document.querySelector("#url");
+          WindowHelpers.sendEvent(elm, "blur");
+        })
         .sleep(500)
-        .findByCssSelector(".form-message-error");
+        .findByCssSelector(".form-message-error")
     },
 
     "URL validation"() {
@@ -90,6 +94,9 @@ registerSuite("Reporting (non-auth)", {
         .type("sup")
         .end()
         .sleep(500)
+        .findByCssSelector("#description")
+        .click()
+        .end()
         .findByCssSelector(".form-message-error")
         .getVisibleText()
         .then(function(text) {

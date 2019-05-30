@@ -26,17 +26,20 @@ function BugForm(v) {
     url: {
       el: $("#url"),
       valid: null,
-      helpText: "A valid URL is required."
+      helpText: "A valid URL is required.",
+      errFunction: "requiredField"
     },
     problem_category: {
       el: $("[name=problem_category]"),
       valid: null,
-      helpText: "Problem type required."
+      helpText: "Problem type required.",
+      errFunction: "requiredField"
     },
     description: {
       el: $("#description"),
       valid: null,
-      helpText: "A problem summary is required."
+      helpText: "A problem summary is required.",
+      errFunction: "requiredField"
     },
     steps_reproduce: {
       el: $("#steps_reproduce"),
@@ -48,17 +51,20 @@ function BugForm(v) {
       // image should be valid by default because it's optional
       valid: true,
       helpText:
-        "Image must be one of the following: jpe, jpg, jpeg, png, gif, or bmp."
+        "Image must be one of the following: jpe, jpg, jpeg, png, gif, or bmp.",
+      errFunction: "imageField"
     },
     browser: {
       el: $("#browser"),
       valid: true,
-      helpText: null
+      helpText: null,
+      errFunction: "optionalField"
     },
     os: {
       el: $("#os"),
       valid: true,
-      helpText: null
+      helpText: null,
+      errFunction: "optionalField"
     },
     browser_test_type: {
       el: $("[name=browser_test]"),
@@ -69,7 +75,8 @@ function BugForm(v) {
       el: $("#contact"),
       valid: true,
       helpText:
-        "GitHub nicknames are 39 characters max, alphanumeric and hyphens only."
+        "GitHub nicknames are 39 characters max, alphanumeric and hyphens only.",
+      errFunction: "requiredField"
     }
   };
 
@@ -84,16 +91,8 @@ function BugForm(v) {
   this.contactField = this.inputs.contact.el;
 
   this.init = function() {
-    //this.checkURLValidity = this.checkURLValidity.bind(this);
-    this.checkUrlIfNotEmpty = _.debounce(
-      this.checkUrlIfNotEmpty.bind(this),
-      1000
-    );
-    this.checkDescriptionIfNotEmpty = _.debounce(
-      this.checkDescriptionIfNotEmpty.bind(this),
-      1000
-    );
-    // this.checkDescriptionValidity = this.checkDescriptionValidity.bind(this);
+    this.checkUrl = this.checkUrl.bind(this);
+    this.checkDescription = this.checkDescription.bind(this);
     this.checkProblemTypeValidity = this.checkProblemTypeValidity.bind(this);
     this.checkImageTypeValidity = this.checkImageTypeValidity.bind(this);
     this.checkGitHubUsername = this.checkGitHubUsername.bind(this);
@@ -111,8 +110,8 @@ function BugForm(v) {
     }
 
     this.disableSubmits();
-    this.urlField.on("blur input", this.checkUrlIfNotEmpty);
-    this.descField.on("blur input", this.checkDescriptionIfNotEmpty);
+    this.urlField.on("blur input", this.checkUrl);
+    this.descField.on("blur input", this.checkDescription);
     this.problemType.on("change", this.checkProblemTypeValidity);
     this.uploadField.on("change", this.checkImageTypeValidity);
     this.contactField.on("blur input", this.checkGitHubUsername);
@@ -290,8 +289,9 @@ function BugForm(v) {
     this.submitButtons.prop("disabled", false);
   };
 
-  this.determineValidityFunction = function(func, field) {
-    return func(field) ? "makeValid" : "makeInvalid";
+  this.determineValidityFunction = function(func, field, silent) {
+    if (func(field)) return "makeValid";
+    return silent ? "makeInvalidSilent" : "makeInvalid";
   };
 
   this.checkProblemTypeValidity = function() {
@@ -324,33 +324,38 @@ function BugForm(v) {
     if (event) event.target.value = null;
   };
 
-  this.checkUrlIfNotEmpty = function() {
-    var hideError = !this.urlField.val();
-    this.checkURLValidity(hideError);
+  this.checkUrl = function(event) {
+    var isSilent = event.type === "input" || !this.urlField.val();
+    this.checkURLValidity(isSilent);
   };
 
-  this.checkDescriptionIfNotEmpty = function() {
-    var hideError = !this.descField.val();
-    this.checkDescriptionValidity(hideError);
+  this.checkDescription = function() {
+    var isSilent = !this.descField.val();
+    this.checkDescriptionValidity(isSilent);
   };
 
   /**
    * Check to see that the URL input element is not empty,
    or if it's a non-webby scheme. */
-  this.checkURLValidity = function(hideError) {
-    var func = this.determineValidityFunction(v.isUrlValid, this.urlField);
-    this[func]("url", hideError);
+  this.checkURLValidity = function(silent) {
+    var func = this.determineValidityFunction(
+      v.isUrlValid,
+      this.urlField,
+      silent
+    );
+    this[func]("url");
   };
 
   /**
    * Check to see that the description input element is not empty.
    * */
-  this.checkDescriptionValidity = function(hideError) {
+  this.checkDescriptionValidity = function(silent) {
     var func = this.determineValidityFunction(
       v.isDescriptionValid,
-      this.descField
+      this.descField,
+      silent
     );
-    this[func]("description", hideError);
+    this[func]("description");
   };
 
   /**
@@ -393,22 +398,57 @@ function BugForm(v) {
     ];
     if (_.some(inputs, Boolean)) {
       // then, check validity
-      //this.performChecks();
+      this.performChecks();
       // and open the form, if it's not already open
       if (!this.reportButton.hasClass("is-open")) {
         this.reportButton.click();
       }
     }
     // Make sure we only do this if the inputs exist on the page
-    // if (this.browserField.length) {
-    //   this.checkOptionalNonEmpty(this.browserField);
-    // }
-    // if (this.osField.length) {
-    //   this.checkOptionalNonEmpty(this.osField);
-    // }
+    if (this.browserField.length) {
+      this.checkOptionalNonEmpty(this.browserField);
+    }
+    if (this.osField.length) {
+      this.checkOptionalNonEmpty(this.osField);
+    }
+  };
+
+  this.requiredField = function(id, inlineHelp) {
+    inlineHelp.insertAfter("label[for=" + id + "]");
+  };
+
+  this.imageField = function(id, inlineHelp) {
+    $(".form-upload-error").remove();
+
+    inlineHelp
+      .removeClass("form-message-error")
+      .addClass("form-upload-error")
+      .appendTo(".js-error-upload");
+
+    $(".js-label-upload").addClass("is-hidden");
+    $(".js-remove-upload").addClass("is-hidden");
+    $(".js-error-upload").removeClass("is-hidden");
+
+    $(".form-message-error").hide();
+    $(".form-input-validation .error").hide();
+    // "reset" the form field, because the file would get rejected
+    // from the server anyways.
+    this.uploadField.val(this.uploadField.get(0).defaultValue);
+    // return early because we just cleared out the input.
+    // someone might decide to just not select an image.
+    //@todo figure out why early return was needed
+    return;
+  };
+
+  this.optionalField = function(id) {
+    this.inputs[id].el
+      .parents(".js-Form-group")
+      .removeClass("is-error js-form-error");
   };
 
   this.showError = function(id) {
+    if (!this.inputs[id].hasOwnProperty("errFunction")) return;
+
     var inlineHelp = $("<small></small>", {
       class: "label-icon-message form-message-error",
       text: this.inputs[id].helpText
@@ -419,52 +459,23 @@ function BugForm(v) {
       .removeClass("is-validated js-no-error")
       .addClass("is-error js-form-error");
 
-    switch (id) {
-      case "os":
-      case "browser":
-        // remove error classes, because these inputs are optional
-        this.inputs[id].el
-          .parents(".js-Form-group")
-          .removeClass("is-error js-form-error");
-        break;
-      case "url":
-      case "contact":
-      case "description":
-      case "problem_category":
-        inlineHelp.insertAfter("label[for=" + id + "]");
-        break;
-      case "image":
-        // hide the error in case we already saw one
-        $(".form-upload-error").remove();
-
-        inlineHelp
-          .removeClass("form-message-error")
-          .addClass("form-upload-error")
-          .appendTo(".js-error-upload");
-
-        $(".js-label-upload").addClass("is-hidden");
-        $(".js-remove-upload").addClass("is-hidden");
-        $(".js-error-upload").removeClass("is-hidden");
-
-        $(".form-message-error").hide();
-        $(".form-input-validation .error").hide();
-        // "reset" the form field, because the file would get rejected
-        // from the server anyways.
-        this.uploadField.val(this.uploadField.get(0).defaultValue);
-        // return early because we just cleared out the input.
-        // someone might decide to just not select an image.
-        return;
-    }
+    var func = this.inputs[id].errFunction;
+    this[func](id, inlineHelp);
   };
 
-  this.makeInvalid = function(id, hideError) {
+  this.makeInvalid = function(id) {
     // Early return if inline help is already in place.
     if (this.inputs[id].valid === false) {
       return;
     }
 
     this.inputs[id].valid = false;
-    if (!hideError) this.showError(id);
+    this.showError(id);
+    this.disableSubmits();
+  };
+
+  this.makeInvalidSilent = function(id) {
+    this.removeSuccessStyle(this.inputs[id].el);
     this.disableSubmits();
   };
 
@@ -484,21 +495,9 @@ function BugForm(v) {
     }
   };
 
-  // this.removeAllValidityStyles = function(el) {
-  //   this.removeValidStyle(el);
-  //   this.removeInvalidStyle(el);
-  // };
-
-  // this.removeInvalidStyle = function(el) {
-  //   el.parents(".js-Form-group").removeClass("is-error js-form-error");
-  //   el.parents(".js-Form-group")
-  //     .find(".form-message-error")
-  //     .remove();
-  // };
-  //
-  // this.removeValidStyle = function(el) {
-  //   el.parents(".js-Form-group").removeClass("is-validated js-no-error");
-  // };
+  this.removeSuccessStyle = function(el) {
+    el.parents(".js-Form-group").removeClass("is-validated js-no-error");
+  };
 
   this.showSuccess = function(el) {
     el.parents(".js-Form-group")
